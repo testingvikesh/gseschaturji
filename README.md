@@ -18,16 +18,20 @@ Your repo is in `/home/gsescha/public_html` (same as the live site).
 
 If you still see **"The system cannot deploy"** and no Deployment URL:
 
-cPanel blocks deploy when git has uncommitted changes. Fix on the server:
+cPanel blocks deploy when git sees modified files. `php.ini`, `.user.ini`, and `.htaccess` are now **ignored by git** (cPanel manages them on the server).
 
-1. **cPanel → Terminal** (or SSH)
-2. Run:
-   ```bash
-   cd ~/public_html
-   bash scripts/cpanel-fix-git.sh
-   ```
-3. Refresh **Git Version Control → Pull or Deploy** — Deployment URL should appear
-4. Click **Deploy HEAD Commit**
+On the server run:
+```bash
+cd ~/public_html
+git fetch origin main
+git pull origin main
+git rm --cached -f php.ini .user.ini .htaccess 2>/dev/null || true
+git reset --hard origin/main
+git clean -fd
+git status   # should show "nothing to commit, working tree clean"
+```
+
+Then refresh **Git Version Control → Pull or Deploy** — Deployment URL should appear.
 
 ### Option B — SSH/rsync (if webhook is not used)
 
