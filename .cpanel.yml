@@ -1,6 +1,6 @@
 ---
 deployment:
   tasks:
-    - /bin/mkdir -p public/uploads
-    - /bin/chmod 755 public/uploads
-    - /bin/bash scripts/deploy-remote.sh
+    - export DEPLOYPATH=/home/gsescha/public_html
+    - /bin/mkdir -p $DEPLOYPATH/public/uploads
+    - /bin/chmod 755 $DEPLOYPATH/public/uploads

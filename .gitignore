@@ -4,3 +4,14 @@ config.json
 public/uploads
 output
 node_modules
+
+# cPanel / server files (keep git working tree clean for deploy)
+.well-known
+.ftpquota
+.cpanel
+.htpasswds
+*.log
+error_log
+php.ini.local
+.user.ini.local
+.git/index.lock
