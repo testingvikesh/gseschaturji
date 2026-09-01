@@ -6,52 +6,46 @@ GSES Material (AI) Generator — PHP app for cPanel hosting at **gseschaturji.xy
 
 Every push to `main` triggers a deploy via GitHub Actions.
 
-### Option A — cPanel webhook (recommended for cPanel)
+### Manual deploy in cPanel (works now)
 
-Your repo is in `/home/gsescha/public_html` (same as the live site).
+1. **Git Version Control → Manage → Pull or Deploy**
+2. Click **Update from Remote**
+3. Click **Deploy HEAD Commit**
 
-1. **cPanel → Git Version Control → Manage** your repo
-2. Click **Update from Remote** (pulls latest code including `.cpanel.yml`)
-3. Go to **Pull or Deploy** tab — the blue **Deployment URL** appears once deploy is enabled
-4. Copy that URL → GitHub → **Settings → Secrets → Actions** → add `CPANEL_DEPLOY_URL`
-5. Click **Deploy HEAD Commit** once to test, then every push to `main` auto-deploys
+> **Note:** Many cPanel versions (including yours) do **not** show a "Deployment URL" on this page. That is normal for pull-based GitHub repos. Deploy still works via the button above.
 
-If you still see **"The system cannot deploy"** and no Deployment URL:
+### Option A — cPanel API (recommended for GitHub auto-deploy)
 
-cPanel blocks deploy when git sees modified files. `php.ini`, `.user.ini`, and `.htaccess` are now **ignored by git** (cPanel manages them on the server).
+1. **cPanel → Security → Manage API Tokens → Create**
+   - Name: `github-deploy`
+   - Copy the token (shown once)
+2. Add GitHub Secrets (Settings → Secrets → Actions):
 
-On the server run:
+| Secret | Value |
+|--------|-------|
+| `CPANEL_HOST` | `gseschaturji.xyz` (or server hostname) |
+| `CPANEL_USER` | `gsescha` |
+| `CPANEL_API_TOKEN` | token from step 1 |
+| `DEPLOY_PATH` | `/home/gsescha/public_html` |
+
+3. Push to `main` — GitHub Actions pulls + deploys via cPanel API
+
+### Option B — Server cron (no GitHub setup)
+
+cPanel → **Cron Jobs** → every 5 minutes:
+
 ```bash
-cd ~/public_html
-git fetch origin main
-git pull origin main
-git rm --cached -f php.ini .user.ini .htaccess 2>/dev/null || true
-git reset --hard origin/main
-git clean -fd
-git status   # should show "nothing to commit, working tree clean"
+/bin/bash /home/gsescha/public_html/scripts/cpanel-auto-deploy.sh
 ```
 
-Then refresh **Git Version Control → Pull or Deploy** — Deployment URL should appear.
+### Option C — SSH/rsync (fallback)
 
-### Option B — SSH/rsync (if webhook is not used)
-
-GitHub Secrets (Settings → Secrets → Actions):
-
-| Secret | Example | Description |
-|--------|---------|-------------|
-| `SSH_HOST` | `gseschaturji.xyz` | Server hostname (try your WHM hostname if domain fails) |
-| `SSH_USER` | `cpanel_username` | cPanel username |
-| `SSH_PRIVATE_KEY` | full private key | Must match an **authorized** public key on the server |
-| `DEPLOY_PATH` | `/home/USERNAME/public_html` | Absolute site root path |
-| `SSH_PORT` | `22` | Optional |
-
-**SSH key checklist:**
-- Generate: `ssh-keygen -t ed25519 -f deploy_key -N ""`
-- cPanel → **SSH Access** → Import `deploy_key.pub` → click **Authorize**
-- GitHub secret `SSH_PRIVATE_KEY` = contents of `deploy_key` (with `BEGIN`/`END` lines)
-- Verify fingerprint matches: `ssh-keygen -lf deploy_key.pub`
-
-If `CPANEL_DEPLOY_URL` is set, the workflow uses the webhook and skips SSH.
+| Secret | Example |
+|--------|---------|
+| `SSH_HOST` | `gseschaturji.xyz` |
+| `SSH_USER` | `gsescha` |
+| `SSH_PRIVATE_KEY` | deploy key private key |
+| `DEPLOY_PATH` | `/home/gsescha/public_html` |
 
 ### Server setup (one time)
 
