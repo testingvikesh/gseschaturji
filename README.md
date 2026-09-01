@@ -4,68 +4,47 @@ GSES Material (AI) Generator — PHP app for cPanel hosting at **gseschaturji.xy
 
 ## Auto deploy (GitHub → live server)
 
-Every push to `main` deploys to the production server via GitHub Actions (rsync over SSH).
+Every push to `main` triggers a deploy via GitHub Actions.
 
-### 1. One-time server setup
+### Option A — cPanel webhook (recommended for cPanel)
 
-On the live server (cPanel / SSH):
+1. **cPanel → Git Version Control → Create**
+   - Clone URL: `https://github.com/testingvikesh/gseschaturji.git`
+   - Repository path: e.g. `/home/USERNAME/repositories/gseschaturji`
+2. Open **Manage** → **Pull or Deploy** tab → copy the **Deployment URL**
+3. Add GitHub secret:
+   - `CPANEL_DEPLOY_URL` = the deployment URL from cPanel
+4. Edit `.cpanel.yml` if your site root is not `/home/USERNAME/public_html`
+5. Push to `main` — GitHub Actions calls the webhook, cPanel pulls from GitHub and runs `.cpanel.yml`
 
-1. Create the site folder (usually `public_html` or your domain root), e.g. `/home/USERNAME/public_html`
-2. Copy secrets config (not in git):
-   ```bash
-   cp config.example.json config.json
-   # Edit config.json with DB credentials and API keys
-   ```
-3. Ensure `public/uploads` exists and is writable:
-   ```bash
-   mkdir -p public/uploads && chmod 755 public/uploads
-   ```
-4. Enable **SSH access** in cPanel (if not already enabled)
+### Option B — SSH/rsync (if webhook is not used)
 
-### 2. Deploy SSH key
-
-On your computer (or the server):
-
-```bash
-ssh-keygen -t ed25519 -C "github-deploy-gseschaturji" -f deploy_key -N ""
-```
-
-- Add **`deploy_key.pub`** to the server: cPanel → **SSH Access** → **Manage SSH Keys** → Import → Authorize
-- Add **`deploy_key`** (private key) to GitHub secret `SSH_PRIVATE_KEY` — paste the full key including `-----BEGIN` and `-----END` lines
-
-### 3. GitHub repository secrets
-
-Repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
+GitHub Secrets (Settings → Secrets → Actions):
 
 | Secret | Example | Description |
 |--------|---------|-------------|
-| `SSH_HOST` | `gseschaturji.xyz` | Server hostname or IP |
-| `SSH_USER` | `cpanel_username` | cPanel / SSH username |
-| `SSH_PRIVATE_KEY` | contents of `deploy_key` | Full private key including `BEGIN` / `END` lines |
-| `DEPLOY_PATH` | `/home/USERNAME/public_html` | Absolute path to site root on server |
-| `SSH_PORT` | `22` | Optional; omit if using port 22 |
+| `SSH_HOST` | `gseschaturji.xyz` | Server hostname (try your WHM hostname if domain fails) |
+| `SSH_USER` | `cpanel_username` | cPanel username |
+| `SSH_PRIVATE_KEY` | full private key | Must match an **authorized** public key on the server |
+| `DEPLOY_PATH` | `/home/USERNAME/public_html` | Absolute site root path |
+| `SSH_PORT` | `22` | Optional |
 
-Also create a GitHub **environment** named `production` (Settings → Environments) if you want approval gates before deploy.
+**SSH key checklist:**
+- Generate: `ssh-keygen -t ed25519 -f deploy_key -N ""`
+- cPanel → **SSH Access** → Import `deploy_key.pub` → click **Authorize**
+- GitHub secret `SSH_PRIVATE_KEY` = contents of `deploy_key` (with `BEGIN`/`END` lines)
+- Verify fingerprint matches: `ssh-keygen -lf deploy_key.pub`
 
-### 4. First deploy
+If `CPANEL_DEPLOY_URL` is set, the workflow uses the webhook and skips SSH.
 
-Merge the deploy workflow, then either:
+### Server setup (one time)
 
-- Push to `main`, or
-- Actions → **Deploy to live server** → **Run workflow**
+```bash
+cp config.example.json config.json   # add DB + API keys
+mkdir -p public/uploads && chmod 755 public/uploads
+```
 
 ### What gets deployed
 
-- All project files are synced with `rsync`
-- **Not overwritten on server:** `config.json`, `.env`, `public/uploads/`, `node_modules/`
-- After sync, `npm ci --omit=dev` runs on the server if Node.js is available
-
-### Manual deploy on server
-
-If you use git on the server instead:
-
-```bash
-cd /home/USERNAME/public_html
-git pull origin main
-bash scripts/deploy-remote.sh
-```
+- Project files sync to the live server
+- **Not overwritten:** `config.json`, `.env`, `public/uploads/`, `node_modules/`
