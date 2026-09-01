@@ -17,43 +17,61 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy via cPanel webhook
-        id: cpanel
+      - name: Deploy via cPanel API
+        id: cpanel_api
+        env:
+          CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+          CPANEL_USER: ${{ secrets.CPANEL_USER }}
+          CPANEL_API_TOKEN: ${{ secrets.CPANEL_API_TOKEN }}
+          REPO_ROOT: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          if [ -z "${CPANEL_API_TOKEN}" ] || [ -z "${CPANEL_USER}" ] || [ -z "${CPANEL_HOST}" ] || [ -z "${REPO_ROOT}" ]; then
+            echo "use_api=false" >> "$GITHUB_OUTPUT"
+            echo "cPanel API secrets not set"
+            exit 0
+          fi
+          BASE="https://${CPANEL_HOST}:2083"
+          AUTH="${CPANEL_USER}:${CPANEL_API_TOKEN}"
+          echo "Pulling latest from GitHub..."
+          curl -fsS -u "${AUTH}" \
+            "${BASE}/execute/VersionControl/update" \
+            -G \
+            --data-urlencode "repository_root=${REPO_ROOT}" \
+            --data-urlencode "branch=main"
+          echo "Deploying on cPanel..."
+          curl -fsS -u "${AUTH}" \
+            "${BASE}/execute/VersionControlDeployment/create" \
+            -G \
+            --data-urlencode "repository_root=${REPO_ROOT}"
+          echo "use_api=true" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy via cPanel webhook URL
+        id: cpanel_webhook
+        if: steps.cpanel_api.outputs.use_api != 'true'
         env:
           CPANEL_DEPLOY_URL: ${{ secrets.CPANEL_DEPLOY_URL }}
         run: |
           if [ -z "${CPANEL_DEPLOY_URL}" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "CPANEL_DEPLOY_URL not set — trying SSH deploy"
+            echo "use_webhook=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "Triggering cPanel pull + deploy..."
           curl -fsS -X POST "${CPANEL_DEPLOY_URL}"
-          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "use_webhook=true" >> "$GITHUB_OUTPUT"
 
       - name: Start SSH agent
-        if: steps.cpanel.outputs.skip != 'false'
+        if: steps.cpanel_api.outputs.use_api != 'true' && steps.cpanel_webhook.outputs.use_webhook != 'true'
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Add server to known hosts
-        if: steps.cpanel.outputs.skip != 'false'
+        if: steps.cpanel_api.outputs.use_api != 'true' && steps.cpanel_webhook.outputs.use_webhook != 'true'
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Test SSH connection
-        if: steps.cpanel.outputs.skip != 'false'
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
-        run: |
-          ssh -p "${SSH_PORT}" -o BatchMode=yes "${SSH_USER}@${SSH_HOST}" "echo connected && pwd"
-
-      - name: Sync files to server
-        if: steps.cpanel.outputs.skip != 'false'
+      - name: Sync files to server via SSH
+        if: steps.cpanel_api.outputs.use_api != 'true' && steps.cpanel_webhook.outputs.use_webhook != 'true'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -71,13 +89,4 @@ jobs:
             --exclude 'output/' \
             -e "ssh -p ${SSH_PORT} -o BatchMode=yes" \
             ./ "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/"
-
-      - name: Run post-deploy tasks
-        if: steps.cpanel.outputs.skip != 'false'
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-        run: |
           ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "cd '${DEPLOY_PATH}' && bash scripts/deploy-remote.sh"
