@@ -17,17 +17,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Deploy via cPanel webhook
+        id: cpanel
+        env:
+          CPANEL_DEPLOY_URL: ${{ secrets.CPANEL_DEPLOY_URL }}
+        run: |
+          if [ -z "${CPANEL_DEPLOY_URL}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "CPANEL_DEPLOY_URL not set — trying SSH deploy"
+            exit 0
+          fi
+          echo "Triggering cPanel pull + deploy..."
+          curl -fsS -X POST "${CPANEL_DEPLOY_URL}"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
       - name: Start SSH agent
+        if: steps.cpanel.outputs.skip != 'false'
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Add server to known hosts
+        if: steps.cpanel.outputs.skip != 'false'
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Test SSH connection
+        if: steps.cpanel.outputs.skip != 'false'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -36,6 +53,7 @@ jobs:
           ssh -p "${SSH_PORT}" -o BatchMode=yes "${SSH_USER}@${SSH_HOST}" "echo connected && pwd"
 
       - name: Sync files to server
+        if: steps.cpanel.outputs.skip != 'false'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -55,19 +73,11 @@ jobs:
             ./ "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/"
 
       - name: Run post-deploy tasks
+        if: steps.cpanel.outputs.skip != 'false'
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" <<EOF
-          set -e
-          cd "${DEPLOY_PATH}"
-          mkdir -p public/uploads
-          chmod 755 public/uploads
-          if command -v npm >/dev/null 2>&1 && [ -f package.json ]; then
-            npm ci --omit=dev --no-audit --no-fund
-          fi
-          echo "Deploy complete"
-          EOF
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" "cd '${DEPLOY_PATH}' && bash scripts/deploy-remote.sh"
