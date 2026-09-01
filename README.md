@@ -8,14 +8,17 @@ Every push to `main` triggers a deploy via GitHub Actions.
 
 ### Option A — cPanel webhook (recommended for cPanel)
 
-1. **cPanel → Git Version Control → Create**
-   - Clone URL: `https://github.com/testingvikesh/gseschaturji.git`
-   - Repository path: e.g. `/home/USERNAME/repositories/gseschaturji`
-2. Open **Manage** → **Pull or Deploy** tab → copy the **Deployment URL**
-3. Add GitHub secret:
-   - `CPANEL_DEPLOY_URL` = the deployment URL from cPanel
-4. Edit `.cpanel.yml` if your site root is not `/home/USERNAME/public_html`
-5. Push to `main` — GitHub Actions calls the webhook, cPanel pulls from GitHub and runs `.cpanel.yml`
+Your repo is in `/home/gsescha/public_html` (same as the live site).
+
+1. **cPanel → Git Version Control → Manage** your repo
+2. Click **Update from Remote** (pulls latest code including `.cpanel.yml`)
+3. Go to **Pull or Deploy** tab — the blue **Deployment URL** appears once deploy is enabled
+4. Copy that URL → GitHub → **Settings → Secrets → Actions** → add `CPANEL_DEPLOY_URL`
+5. Click **Deploy HEAD Commit** once to test, then every push to `main` auto-deploys
+
+If you still see "The system cannot deploy":
+- Click **Update from Remote** first (needs `.cpanel.yml` from GitHub)
+- Make sure there are no uncommitted changes in cPanel git
 
 ### Option B — SSH/rsync (if webhook is not used)
 

@@ -1,5 +1,6 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/$USER/public_html
-    - /bin/bash scripts/cpanel-sync.sh
+    - /bin/mkdir -p public/uploads
+    - /bin/chmod 755 public/uploads
+    - /bin/bash scripts/deploy-remote.sh
