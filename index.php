@@ -654,7 +654,7 @@
     <!-- LOGIN -->
     <form id="loginForm" class="card">
       <div class="login-head">
-        <strong>Welcome back</strong>
+        <strong>Welcome GSES Chaturji</strong>
         <p>Sign in with your GSES account to generate chapter material</p>
       </div>
       <div class="field">
