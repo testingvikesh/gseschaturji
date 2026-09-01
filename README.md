@@ -16,9 +16,18 @@ Your repo is in `/home/gsescha/public_html` (same as the live site).
 4. Copy that URL → GitHub → **Settings → Secrets → Actions** → add `CPANEL_DEPLOY_URL`
 5. Click **Deploy HEAD Commit** once to test, then every push to `main` auto-deploys
 
-If you still see "The system cannot deploy":
-- Click **Update from Remote** first (needs `.cpanel.yml` from GitHub)
-- Make sure there are no uncommitted changes in cPanel git
+If you still see **"The system cannot deploy"** and no Deployment URL:
+
+cPanel blocks deploy when git has uncommitted changes. Fix on the server:
+
+1. **cPanel → Terminal** (or SSH)
+2. Run:
+   ```bash
+   cd ~/public_html
+   bash scripts/cpanel-fix-git.sh
+   ```
+3. Refresh **Git Version Control → Pull or Deploy** — Deployment URL should appear
+4. Click **Deploy HEAD Commit**
 
 ### Option B — SSH/rsync (if webhook is not used)
 
