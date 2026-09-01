@@ -12,18 +12,28 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure SSH key
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
         run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.SSH_PORT || 22 }}" "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Test SSH connection
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+        run: |
+          ssh -p "${SSH_PORT}" -o BatchMode=yes "${SSH_USER}@${SSH_HOST}" "echo connected && pwd"
 
       - name: Sync files to server
         env:
@@ -41,25 +51,23 @@ jobs:
             --exclude '.env.local' \
             --exclude 'public/uploads/' \
             --exclude 'output/' \
-            -e "ssh -i ~/.ssh/deploy_key -p ${SSH_PORT} -o StrictHostKeyChecking=accept-new" \
+            -e "ssh -p ${SSH_PORT} -o BatchMode=yes" \
             ./ "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/"
 
       - name: Run post-deploy tasks
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
-          script: |
-            set -e
-            cd "${{ secrets.DEPLOY_PATH }}"
-
-            mkdir -p public/uploads
-            chmod 755 public/uploads
-
-            if command -v npm >/dev/null 2>&1 && [ -f package.json ]; then
-              npm ci --omit=dev --no-audit --no-fund
-            fi
-
-            echo "Deployed commit: $(git rev-parse HEAD 2>/dev/null || echo 'rsync-only')"
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || 22 }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -p "${SSH_PORT}" "${SSH_USER}@${SSH_HOST}" <<EOF
+          set -e
+          cd "${DEPLOY_PATH}"
+          mkdir -p public/uploads
+          chmod 755 public/uploads
+          if command -v npm >/dev/null 2>&1 && [ -f package.json ]; then
+            npm ci --omit=dev --no-audit --no-fund
+          fi
+          echo "Deploy complete"
+          EOF
