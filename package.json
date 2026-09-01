@@ -1,0 +1,22 @@
+{
+  "name": "tools",
+  "version": "1.0.0",
+  "description": "",
+  "main": "generate-material-json.js",
+  "scripts": {
+    "generate": "node generate-material-json.js",
+    "process": "node process-pdf.js",
+    "generate:ai": "node generate-material-ai.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "canvas": "^3.2.3",
+    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^6.0.227",
+    "tesseract.js": "^7.0.0"
+  }
+}

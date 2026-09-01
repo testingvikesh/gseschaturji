@@ -1,0 +1,38 @@
+{
+  "ai": {
+    "provider": "openai",
+    "api_key": "YOUR_OPENAI_API_KEY",
+    "model": "gpt-4o-mini",
+    "base_url": "https://api.openai.com/v1",
+    "max_sections": 0,
+    "topic_wise": true,
+    "max_retries": 2,
+    "request_timeout_ms": 300000,
+    "fast_mode": true,
+    "request_delay_ms": 0,
+    "combined_section": false,
+    "skip_ladder_retry": true
+  },
+  "ocr": {
+    "provider": "google_vision",
+    "google_vision_api_key": "YOUR_GOOGLE_VISION_API_KEY",
+    "language_hints": ["hi", "gu", "en"],
+    "language": "hin+guj+eng",
+    "scale": 2
+  },
+  "auto_generate_material": true,
+  "auth": {
+    "note": "Login uses db_ai.users (email + password). Only approved admin/teacher roles.",
+    "username": "developer@gmail.com",
+    "password": ""
+  },
+  "mysql": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "material_ai",
+    "username": "root",
+    "password": "",
+    "charset": "utf8mb4"
+  }
+}
