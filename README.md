@@ -31,7 +31,7 @@ ssh-keygen -t ed25519 -C "github-deploy-gseschaturji" -f deploy_key -N ""
 ```
 
 - Add **`deploy_key.pub`** to the server: cPanel → **SSH Access** → **Manage SSH Keys** → Import → Authorize
-- Keep **`deploy_key`** (private key) for GitHub Secrets
+- Add **`deploy_key`** (private key) to GitHub secret `SSH_PRIVATE_KEY` — paste the full key including `-----BEGIN` and `-----END` lines
 
 ### 3. GitHub repository secrets
 
